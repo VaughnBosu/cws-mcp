@@ -1,0 +1,16 @@
+# Binaries
+/cws-mcp
+*.exe
+dist/
+
+# Go
+/vendor/
+
+# IDE / local editor config
+.cursor/
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store

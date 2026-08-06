@@ -1,0 +1,56 @@
+version: 2
+
+project_name: cws-mcp
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.Version={{.Version}}
+    main: ./cmd/cws-mcp
+
+archives:
+  - formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+
+brews:
+  - repository:
+      owner: vaughnbosu
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/vaughnbosu/cws-mcp"
+    description: "MCP server for managing Chrome Web Store extensions"
+    license: "MIT"
+    install: |
+      bin.install "cws-mcp"
+    test: |
+      assert_match version.to_s, shell_output("#{bin}/cws-mcp -version")
+
+release:
+  github:
+    owner: vaughnbosu
+    name: cws-mcp

@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "chrome-web-store": {
+      "command": "/opt/homebrew/bin/cws-mcp",
+      "env": {
+        "CWS_WORKSPACE": "/Users/you/dev/your-extension"
+      }
+    }
+  }
+}

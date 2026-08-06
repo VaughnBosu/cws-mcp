@@ -1,0 +1,12 @@
+{
+  "servers": {
+    "chrome-web-store": {
+      "type": "stdio",
+      "command": "cws-mcp",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "CWS_WORKSPACE": "${workspaceFolder}"
+      }
+    }
+  }
+}
