@@ -5,86 +5,66 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/vaughnbosu/cws-cli/pkg/api"
 	"github.com/vaughnbosu/cws-cli/pkg/service"
 )
 
-// ErrorPayload is the structured error returned to MCP clients.
+// ErrorPayload is the JSON error returned to MCP clients.
 type ErrorPayload struct {
-	Error   string              `json:"error"`
-	Hint    string              `json:"hint,omitempty"`
-	Code    string              `json:"code,omitempty"`
-	Details []api.ErrorDetail   `json:"details,omitempty"`
+	Error   string                     `json:"error"`
+	Hint    string                     `json:"hint,omitempty"`
+	Code    string                     `json:"code,omitempty"`
+	Details []ErrorDetail              `json:"details,omitempty"`
 	Checks  []service.ValidationResult `json:"checks,omitempty"`
 }
 
-// RawOK returns a successful result with pre-marshaled JSON.
-func RawOK(raw json.RawMessage) (*mcp.CallToolResult, json.RawMessage, error) {
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{
-			&mcp.TextContent{Text: string(raw)},
-		},
-	}, raw, nil
+type ErrorDetail struct {
+	Code   string `json:"code,omitempty"`
+	Detail string `json:"detail,omitempty"`
+	Hint   string `json:"hint,omitempty"`
 }
 
-// OK returns a successful tool result with JSON structured output.
-func OK(v any) (*mcp.CallToolResult, json.RawMessage, error) {
-	raw, err := json.Marshal(v)
-	if err != nil {
-		return Fail(fmt.Errorf("marshal result: %w", err)), nil, nil
-	}
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{
-			&mcp.TextContent{Text: string(raw)},
-		},
-	}, raw, nil
+type toolError struct {
+	cause error
+	text  string
 }
 
-// Fail converts an error into an MCP tool error result.
-func Fail(err error) *mcp.CallToolResult {
+func (e *toolError) Error() string { return e.text }
+func (e *toolError) Unwrap() error { return e.cause }
+
+// Error converts an operation error to the concise JSON text returned by the
+// SDK for a failed typed tool call.
+func Error(err error) error {
 	if err == nil {
 		return nil
 	}
 
-	var valErr *service.ValidationError
-	if errors.As(err, &valErr) {
-		return validationFail(valErr.Result)
+	payload := ErrorPayload{Error: err.Error()}
+
+	var validationErr *service.ValidationError
+	if errors.As(err, &validationErr) && validationErr.Result != nil {
+		payload.Error = fmt.Sprintf("validation failed: %d issue(s) found", validationErr.Result.Failures)
+		payload.Checks = validationErr.Result.Checks
 	}
 
 	var cwsErr *api.CWSError
 	if errors.As(err, &cwsErr) {
-		return fromCWSError(cwsErr)
+		payload.Error = cwsErr.Error()
+		payload.Hint = cwsErr.Hint
+		payload.Code = cwsErr.Code
+		payload.Details = make([]ErrorDetail, len(cwsErr.Details))
+		for i, detail := range cwsErr.Details {
+			payload.Details[i] = ErrorDetail{
+				Code:   detail.Code,
+				Detail: detail.Detail,
+				Hint:   detail.Hint,
+			}
+		}
 	}
 
-	payload := ErrorPayload{Error: err.Error()}
-	return errorResult(payload)
-}
-
-func fromCWSError(e *api.CWSError) *mcp.CallToolResult {
-	payload := ErrorPayload{
-		Error:   e.Error(),
-		Hint:    e.Hint,
-		Code:    e.Code,
-		Details: e.Details,
+	b, marshalErr := json.Marshal(payload)
+	if marshalErr != nil {
+		return fmt.Errorf("encode tool error: %w", marshalErr)
 	}
-	return errorResult(payload)
-}
-
-func validationFail(result *service.ValidateResult) *mcp.CallToolResult {
-	payload := ErrorPayload{
-		Error:  fmt.Sprintf("validation failed: %d issue(s) found", result.Failures),
-		Checks: result.Checks,
-	}
-	return errorResult(payload)
-}
-
-func errorResult(payload ErrorPayload) *mcp.CallToolResult {
-	text, _ := json.MarshalIndent(payload, "", "  ")
-	return &mcp.CallToolResult{
-		IsError: true,
-		Content: []mcp.Content{
-			&mcp.TextContent{Text: string(text)},
-		},
-	}
+	return &toolError{cause: err, text: string(b)}
 }

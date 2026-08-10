@@ -36,19 +36,26 @@ changelog:
       - "^test:"
       - "^ci:"
 
-brews:
-  - repository:
+homebrew_casks:
+  - name: cws-mcp
+    binaries:
+      - cws-mcp
+    repository:
       owner: vaughnbosu
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    directory: Formula
+    directory: Casks
+    url:
+      verified: github.com/vaughnbosu/cws-mcp/
     homepage: "https://github.com/vaughnbosu/cws-mcp"
     description: "MCP server for managing Chrome Web Store extensions"
     license: "MIT"
-    install: |
-      bin.install "cws-mcp"
-    test: |
-      assert_match version.to_s, shell_output("#{bin}/cws-mcp -version")
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/cws-mcp"]
+          end
 
 release:
   github:

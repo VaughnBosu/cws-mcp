@@ -3,7 +3,7 @@
     "chrome-web-store": {
       "command": "cws-mcp",
       "env": {
-        "CWS_WORKSPACE": "/Users/you/dev/your-extension"
+        "CWS_WORKSPACE": "${CLAUDE_PROJECT_DIR:-.}"
       }
     }
   }
